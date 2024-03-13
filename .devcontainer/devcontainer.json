@@ -1,0 +1,15 @@
+{
+  "name": "Planscape",
+  "context": "..",
+  "dockerFile": "Dockerfile",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": ["ms-python.python"],
+  "forwardPorts": [8000, 4200],
+  "remoteUser": "vscode",
+  "postCreateCommand": "source env/bin/activate && python3 -m pip install --upgrade pip && pip install -r requirements.txt",
+  "runArgs": ["--network", "bridge"],
+  "workspaceFolder": "/workspace", // DevPod expects the workspace to be at /workspace
+  "shutdownAction": "stopContainer" // This might be needed for DevPod
+}

@@ -1,9 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import {
   ActivatedRouteSnapshot,
-  CanActivate,
   Router,
   RouterStateSnapshot,
 } from '@angular/router';
@@ -50,6 +49,10 @@ export class AuthService {
     private snackbar: MatSnackBar,
     private redirectService: RedirectService
   ) {}
+
+  currentUser() {
+    return this.loggedInUser$.value;
+  }
 
   login(email: string, password: string) {
     return this.http
@@ -325,10 +328,10 @@ export class AuthService {
    * "Deletes" user from backend. The behavior of this command is to disable the user account,
    *  not fully delete it, so data can be restored later if necessary.
    */
-  deleteUser(user: User, password: string): Observable<boolean> {
+  deactivateUser(user: User, password: string): Observable<boolean> {
     return this.http
       .post(
-        BackendConstants.END_POINT.concat('/users/delete/'),
+        BackendConstants.END_POINT.concat('/users/deactivate/'),
         {
           password: password,
           email: user.email,
@@ -362,8 +365,10 @@ export class AuthService {
 /** An AuthGuard used to prevent access to pages that require sign-in. If the user is not signed
  *  in, redirect to the sign-in page.
  */
-@Injectable()
-export class AuthGuard implements CanActivate {
+@Injectable({
+  providedIn: 'root',
+})
+export class AuthGuard {
   constructor(
     private authService: AuthService,
     private router: Router,

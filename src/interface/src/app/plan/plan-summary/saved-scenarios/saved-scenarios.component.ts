@@ -1,20 +1,25 @@
 import { Component, Input, OnInit } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../services';
 import { interval, take } from 'rxjs';
 import { Plan, Scenario } from 'src/app/types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
-import { POLLING_INTERVAL } from '../../plan-helpers';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { isValidTotalArea, POLLING_INTERVAL } from '../../plan-helpers';
+import {
+  MatLegacyDialog as MatDialog,
+  MatLegacyDialogRef as MatDialogRef,
+} from '@angular/material/legacy-dialog';
 import { DeleteDialogComponent } from '../../../delete-dialog/delete-dialog.component';
 import { canAddScenario } from '../../../plan/permissions';
 import {
+  SNACK_BOTTOM_NOTICE_CONFIG,
   SNACK_ERROR_CONFIG,
   SNACK_NOTICE_CONFIG,
 } from '../../../shared/constants';
 
 import { ScenarioService } from '@services';
+import { MatTab } from '@angular/material/tabs';
 
 export interface ScenarioRow extends Scenario {
   selected?: boolean;
@@ -36,6 +41,9 @@ export class SavedScenariosComponent implements OnInit {
   activeScenarios: ScenarioRow[] = [];
   archivedScenarios: ScenarioRow[] = [];
   scenariosForUser: ScenarioRow[] = [];
+  selectedTabIndex = 0;
+  totalScenarios = 0;
+
   constructor(
     private route: ActivatedRoute,
     private authService: AuthService,
@@ -62,6 +70,8 @@ export class SavedScenariosComponent implements OnInit {
       .getScenariosForPlan(this.plan?.id!)
       .pipe(take(1))
       .subscribe((scenarios) => {
+        this.totalScenarios = scenarios.length;
+
         this.scenariosForUser = this.showOnlyMyScenarios
           ? scenarios.filter((s) => s.user === this.user$.value?.id)
           : scenarios;
@@ -75,11 +85,31 @@ export class SavedScenariosComponent implements OnInit {
       });
   }
 
-  canAddScenarioForPlan(): boolean {
+  get canAddScenarioForPlan(): boolean {
     if (!this.plan) {
       return false;
     }
     return canAddScenario(this.plan);
+  }
+
+  get showArchiveScenario() {
+    if (!this.plan) {
+      return false;
+    }
+    // Users that can add scenarios can potentially archive them.
+    // Users that cannot add scenarios can never archive/restore.
+    return this.plan.permissions.includes('add_scenario');
+  }
+
+  get canArchiveScenario() {
+    if (!this.plan || !this.highlightedScenarioRow) {
+      return false;
+    }
+    const user = this.authService.currentUser();
+    return (
+      user?.id === this.plan.user ||
+      user?.id == this.highlightedScenarioRow?.user
+    );
   }
 
   openConfig(configId?: number): void {
@@ -135,5 +165,45 @@ export class SavedScenariosComponent implements OnInit {
 
   highlightScenario(row: ScenarioRow): void {
     this.highlightedScenarioRow = row;
+  }
+
+  toggleScenarioStatus(archive: boolean) {
+    const id = this.highlightedScenarioRow?.id;
+
+    if (id) {
+      this.scenarioService.toggleScenarioStatus(Number(id), archive).subscribe({
+        next: () => {
+          this.snackbar.open(
+            `"${this.highlightedScenarioRow?.name}" has been ${
+              archive ? 'archived' : 'restored'
+            }`,
+            'Dismiss',
+            SNACK_BOTTOM_NOTICE_CONFIG
+          );
+          this.highlightedScenarioRow = null;
+          this.fetchScenarios();
+        },
+        error: (err) => {
+          this.snackbar.open(
+            `Error: ${err.error.error}`,
+            'Dismiss',
+            SNACK_ERROR_CONFIG
+          );
+        },
+      });
+    }
+  }
+
+  tabChange(data: { index: number; tab: MatTab }) {
+    this.selectedTabIndex = data.index;
+    // reset selected row when changing tabs.
+    this.highlightedScenarioRow = null;
+  }
+
+  get isValidPlanningArea() {
+    if (!this.plan) {
+      return false;
+    }
+    return isValidTotalArea(this.plan.area_acres);
   }
 }

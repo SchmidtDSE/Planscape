@@ -33,13 +33,16 @@ ALLOWED_HOSTS: list[str] = str(config("PLANSCAPE_ALLOWED_HOSTS", default="*")).s
 planscape_apps = [
     "attributes",
     "boundary",
+    "collaboration",
     "conditions",
+    "core",
+    "organizations",
     "planning",
+    "projects",
+    "restrictions",
     "stands",
     "users",
-    "restrictions",
     "utils",
-    "collaboration",
 ]
 INSTALLED_APPS = [
     "allauth",
@@ -55,10 +58,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.gis",
-    "django_crontab",
     "django_extensions",
-    "leaflet",
-    "lockdown",
     "password_policies",
     "rest_framework",
     "rest_framework_gis",
@@ -77,7 +77,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "lockdown.middleware.LockdownMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
 
@@ -122,19 +121,6 @@ DATABASES = {
         },
     }
 }
-
-
-# Locking down API calls to only itself.
-LOCKDOWN_ENABLED = False
-
-# if we ever needed to make some backend APIs (views) available to anyone.
-LOCKDOWN_VIEW_EXCEPTIONS = []
-
-# should put in all IPs matching planscape/trusted hosts
-LOCKDOWN_REMOTE_ADDR_EXCEPTIONS = [
-    "127.0.0.1",
-    "::1",
-]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -222,6 +208,8 @@ REST_AUTH = {
     "USE_JWT": True,
     "JWT_AUTH_COOKIE": "my-app-auth",
     "JWT_AUTH_REFRESH_COOKIE": "my-refresh-token",
+    "JWT_AUTH_REFRESH_COOKIE_PATH": "/",
+    "JWT_AUTH_SAMESITE": "Lax",
     "JWT_AUTH_HTTPONLY": False,
     "OLD_PASSWORD_FIELD_ENABLED": True,
     "REGISTER_SERIALIZER": "users.serializers.NameRegistrationSerializer",
@@ -252,6 +240,8 @@ ACCOUNT_USERNAME_REQUIRED = False
 LOGOUT_ON_PASSWORD_CHANGE = False
 ACCOUNT_ADAPTER = "users.allauth_adapter.CustomAllauthAdapter"
 PASSWORD_RESET_TIMEOUT = 1800  # 30 minutes.
+
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@planscape.org")
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
 )
@@ -259,9 +249,8 @@ EMAIL_HOST = config("EMAIL_HOST", default="smtp.google.com")
 EMAIL_UNKNOWN_ACCOUNTS = True
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_PORT = config("EMAIL_PORT", cast=int, default=587)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", "no-reply@planscape.org")
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default=DEFAULT_FROM_EMAIL)
 EMAIL_HOST_PASSWORD = config("EMAIL_BACKEND_APP_PASSWORD", default="UNSET")
-DEFAULT_FROM_EMAIL = "no-reply@planscape.org"
 
 SESSION_REMEMBER = True
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 90  # 90 days
@@ -272,6 +261,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # Regional Resource Kits: the CRS code used for the rasters, and the proj4
 # representation of that coordinate system.
 CRS_FOR_RASTERS = 3857
+CRS_INTERNAL_REPRESENTATION = 4269
 CRS_9822_PROJ4 = (
     "+proj=aea +lat_0=23 +lon_0=-96 +lat_1=29.5 +lat_2=45.5 +x_0=0 +y_0=0 "
     "+datum=WGS84 +units=m +no_defs"
@@ -388,10 +378,9 @@ CRONJOBS = [
     ("0 0 * * *", "planning.cron.delete_old_shared_links"),  # Runs at midnight daily
 ]
 
-REPORT_RECIPIENT_EMAIL = config(
-    "REPORT_RECIPIENT_EMAIL", default="no-reply@planscape.org"
-)
+REPORT_RECIPIENT_EMAIL = config("REPORT_RECIPIENT_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 
 AREA_SRID = 5070
 CONVERSION_SQM_ACRES = 4046.8564213562374
+ADMIN_ORG_UUID = "6eb11079-e007-4776-98e8-29af9167241a"

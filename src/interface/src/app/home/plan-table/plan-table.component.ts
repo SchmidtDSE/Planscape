@@ -1,18 +1,24 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import {
+  MatLegacyDialog as MatDialog,
+  MatLegacyDialogRef as MatDialogRef,
+} from '@angular/material/legacy-dialog';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MatSort } from '@angular/material/sort';
-import { MatTableDataSource } from '@angular/material/table';
+import { MatLegacyTableDataSource as MatTableDataSource } from '@angular/material/legacy-table';
 import { take } from 'rxjs';
 
-import { PlanService } from '@services';
+import { AuthService, PlanService } from '@services';
 import { Router } from '@angular/router';
 import { DeleteDialogComponent } from '../../delete-dialog/delete-dialog.component';
 import { SNACK_NOTICE_CONFIG } from 'src/app/shared/constants';
 import { SharePlanDialogComponent } from '../share-plan-dialog/share-plan-dialog.component';
 import { FeatureService } from '../../features/feature.service';
-import { canViewCollaborators } from '../../plan/permissions';
-import { Plan } from '../../types';
+import {
+  canDeletePlanningArea,
+  canViewCollaborators,
+} from '../../plan/permissions';
+import { Plan, PreviewPlan } from '../../types';
 
 @Component({
   selector: 'app-plan-table',
@@ -24,7 +30,7 @@ export class PlanTableComponent implements OnInit {
   // used just for typing the table on the template
   planrows: Plan[] = [];
 
-  datasource = new MatTableDataSource<Plan>();
+  datasource = new MatTableDataSource<PreviewPlan>();
   selectedPlan: Plan | null = null;
   loading = true;
   error = false;
@@ -40,7 +46,8 @@ export class PlanTableComponent implements OnInit {
     private planService: PlanService,
     private router: Router,
     private snackbar: MatSnackBar,
-    private featureService: FeatureService
+    private featureService: FeatureService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -136,5 +143,16 @@ export class PlanTableComponent implements OnInit {
       return false;
     }
     return canViewCollaborators(this.selectedPlan);
+  }
+
+  get canDeletePlanningArea() {
+    if (!this.selectedPlan) {
+      return false;
+    }
+    const user = this.authService.currentUser();
+    if (!user) {
+      return false;
+    }
+    return canDeletePlanningArea(this.selectedPlan, user);
   }
 }

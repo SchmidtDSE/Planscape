@@ -2,12 +2,12 @@ import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatLegacyButtonHarness as MatButtonHarness } from '@angular/material/legacy-button/testing';
 import {
-  MAT_DIALOG_DATA,
-  MatDialog,
-  MatDialogRef,
-} from '@angular/material/dialog';
+  MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA,
+  MatLegacyDialog as MatDialog,
+  MatLegacyDialogRef as MatDialogRef,
+} from '@angular/material/legacy-dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of } from 'rxjs';
 import { MaterialModule } from 'src/app/material/material.module';
@@ -25,7 +25,7 @@ describe('DeleteAccountDialogComponent', () => {
     fakeAuthService = jasmine.createSpyObj(
       'AuthService',
       {
-        deleteUser: of(true),
+        deactivateUser: of(true),
       },
       {}
     );
@@ -108,7 +108,7 @@ describe('DeleteAccountDialogComponent', () => {
 
     await deleteButton.click();
 
-    expect(fakeAuthService.deleteUser).toHaveBeenCalledOnceWith(
+    expect(fakeAuthService.deactivateUser).toHaveBeenCalledOnceWith(
       {
         email: 'test@test.com',
       },

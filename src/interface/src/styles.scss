@@ -1,6 +1,7 @@
 // Custom Theming for Angular Material
 // For more information: https://material.angular.io/guide/theming
 @use '@angular/material' as mat;
+@import "styles/theme";
 // @import '~angular/material/theming';
 // @import 'super-styles';
 // Plus imports for other components in your app.
@@ -8,14 +9,22 @@
 // Include the common styles for Angular Material. We include this here so that you only
 // have to load a single css file for Angular Material in your app.
 // Be sure that you only ever include this mixin once!
-@include mat.core();
 
-@import "theme";
+// TODO(v15): As of v15 mat.legacy-core no longer includes default typography styles.
+//  The following line adds:
+//    1. Default typography styles for all components
+//    2. Styles for typography hierarchy classes (e.g. .mat-headline-1)
+//  If you specify typography styles for the components you use elsewhere, you should delete this line.
+//  If you don't need the default component typographies but still want the hierarchy styles,
+//  you can delete this line and instead use:
+//    `@include mat.legacy-typography-hierarchy(mat.define-legacy-typography-config());`
+@include mat.all-legacy-component-typographies($planscape-typography);
+@include mat.legacy-core();
 
 // Include theme styles for core and each component used in your app.
 // Alternatively, you can import and @include the theme mixins for each component
 // that you are using.
-@include mat.all-component-themes($planscape-frontend-theme);
+@include mat.all-legacy-component-themes($planscape-frontend-theme);
 
 /* You can add global styles to this file, and also import other style files */
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons|Material+Symbols+Outlined');
@@ -28,6 +37,10 @@ body {
 body {
   margin: 0;
   font-family: 'Public Sans', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+body.no-scroll-bounce {
+  overscroll-behavior: none;
 }
 
 .is-hidden {
@@ -72,7 +85,6 @@ body {
   width: 5px !important;
   height: 5px !important;
 }
-
 
 
 // Must manually import leaflet draw css. https://github.com/Leaflet/Leaflet.draw/issues/617

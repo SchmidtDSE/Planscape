@@ -13,11 +13,11 @@
         mat-stretch-tabs
         disablePagination="true"
         *appFeatureFlag="'show_share_modal'">
-        <mat-tab label="ACTIVE">
+        <mat-tab label="ABOUT">
           <app-area-details [plan]="plan"></app-area-details>
         </mat-tab>
         <mat-tab label="NOTES">
-          <app-area-notes></app-area-notes>
+          <app-area-notes [plan]="plan"></app-area-notes>
         </mat-tab>
       </mat-tab-group>
 
@@ -38,6 +38,7 @@
           <router-outlet #outlet="outlet"></router-outlet>
         </div>
         <div class="plan-map-container">
+          <app-goal-overlay></app-goal-overlay>
           <app-plan-map
             [plan]="currentPlan$ | async"
             [mapId]="'planning-map'"

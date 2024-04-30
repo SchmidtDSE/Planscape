@@ -1,14 +1,19 @@
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import {
+  MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA,
+  MatLegacyDialogRef as MatDialogRef,
+} from '@angular/material/legacy-dialog';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Component, Inject } from '@angular/core';
 import { PlanService, SessionService } from '@services';
 import { firstValueFrom } from 'rxjs';
 import { SNACK_ERROR_CONFIG } from '../../../app/shared/constants';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { Region } from '../../types';
+import { isValidTotalArea } from '../../plan/plan-helpers';
 
 export interface PlanCreateDialogData {
   shape: GeoJSON.GeoJSON;
+  totalArea: number;
 }
 
 @Component({
@@ -31,6 +36,10 @@ export class PlanCreateDialogComponent {
     private matSnackBar: MatSnackBar,
     @Inject(MAT_DIALOG_DATA) public data: PlanCreateDialogData
   ) {}
+
+  get isValidTotalArea() {
+    return isValidTotalArea(this.data.totalArea);
+  }
 
   async submit() {
     if (this.planForm.valid) {

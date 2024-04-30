@@ -1,6 +1,9 @@
 import { Component, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import {
+  MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA,
+  MatLegacyDialogRef as MatDialogRef,
+} from '@angular/material/legacy-dialog';
 import { AuthService } from 'src/app/services';
 import { User } from 'src/app/types';
 
@@ -32,20 +35,26 @@ export class DeleteAccountDialogComponent {
   deleteAccount(): void {
     this.disableDeleteButton = true;
     this.authService
-      .deleteUser(
+      .deactivateUser(
         this.data.user,
         this.deleteAccountForm.get('currentPassword')?.value
       )
-      .subscribe(
-        (_) => {
+      .subscribe({
+        next: () => {
           this.dialogRef.close({
             deletedAccount: true,
           });
         },
-        (err) => {
-          this.error = err.error;
+        error: (err) => {
+          if (err.status === 403) {
+            this.error = 'Password was incorrect.';
+          } else if (err.status === 401) {
+            this.error = 'User is not logged in.';
+          } else {
+            this.error = 'An unknown error has occured.';
+          }
           this.disableDeleteButton = false;
-        }
-      );
+        },
+      });
   }
 }

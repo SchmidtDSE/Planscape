@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { MatSelectChange } from '@angular/material/select';
+import { MatLegacySelectChange as MatSelectChange } from '@angular/material/legacy-select';
 import { ChartData } from './chart-data';
 import { map } from 'rxjs';
 import { PlanStateService } from '@services';
@@ -17,6 +17,11 @@ export class ProjectAreasMetricsComponent {
   mapConditionLayer$ = this.planStateService.planState$.pipe(
     map((planState) => planState.mapConditionLayer)
   );
+
+  dropdownGroups = [
+    { label: 'Primary Metrics', primary: true },
+    { label: 'Secondary Metrics', primary: false },
+  ];
 
   constructor(private planStateService: PlanStateService) {}
 
@@ -45,8 +50,13 @@ export class ProjectAreasMetricsComponent {
   filterData(
     data: ChartData[],
     dataToFilter: ChartData[],
-    currentChart: ChartData
+    currentChart: ChartData,
+    isPrimary: boolean
   ): ChartData[] {
     return data.filter((d) => d === currentChart || !dataToFilter.includes(d));
+  }
+
+  myFilter(data: ChartData[], showPrimary: boolean) {
+    return data.filter((d) => d.is_primary === showPrimary);
   }
 }

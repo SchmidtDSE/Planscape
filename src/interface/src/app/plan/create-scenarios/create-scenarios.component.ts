@@ -17,12 +17,14 @@ import {
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { POLLING_INTERVAL } from '../plan-helpers';
 import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { PlanStateService, ScenarioService } from '@services';
 import { SNACK_ERROR_CONFIG } from '../../shared/constants';
 import { SetPrioritiesComponent } from './set-priorities/set-priorities.component';
 import { ConstraintsPanelComponent } from './constraints-panel/constraints-panel.component';
 import { FeatureService } from '../../features/feature.service';
+import { GoalOverlayService } from './goal-overlay/goal-overlay.service';
+import { ChartData } from '../project-areas-metrics/chart-data';
 
 enum ScenarioTabs {
   CONFIG,
@@ -54,7 +56,7 @@ export class CreateScenariosComponent implements OnInit {
   scenarioState: ScenarioResultStatus = 'NOT_STARTED';
   scenarioResults: ScenarioResult | null = null;
   priorities: string[] = [];
-  scenarioChartData: any[] = [];
+  scenarioChartData: ChartData[] = [];
   tabAnimationOptions: Record<'on' | 'off', string> = {
     on: '500ms',
     off: '0ms',
@@ -76,7 +78,8 @@ export class CreateScenariosComponent implements OnInit {
     private scenarioService: ScenarioService,
     private router: Router,
     private matSnackBar: MatSnackBar,
-    private featureService: FeatureService
+    private featureService: FeatureService,
+    private goalOverlayService: GoalOverlayService
   ) {}
 
   createForms() {
@@ -137,7 +140,7 @@ export class CreateScenariosComponent implements OnInit {
       }
     });
 
-    if (typeof this.planId === 'string') {
+    if (typeof this.planId === 'number') {
       this.scenarioService
         .getScenariosForPlan(this.planId)
         .pipe(take(1))
@@ -224,6 +227,7 @@ export class CreateScenariosComponent implements OnInit {
       return;
     }
     this.generatingScenario = true;
+    this.goalOverlayService.close();
     this.planStateService
       .createScenario(this.formValueToScenario())
       .pipe(
@@ -240,37 +244,6 @@ export class CreateScenariosComponent implements OnInit {
         this.selectedTab = ScenarioTabs.RESULTS;
         this.pollForChanges();
       });
-
-    // this.createUploadedProjectAreas()
-    //   .pipe(
-    //     take(1),
-    //     concatMap(() => {
-    //       return this.planService.createScenario(
-    //         this.formValueToProjectConfig()
-    //       );
-    //     }),
-
-    // TODO Implement more specific error catching (currently raises shapefile error message for any thrown error)
-    // catchError(() => {
-    //   this.matSnackBar.open(
-    //     '[Error] Project area shapefile should only include polygons or multipolygons',
-    //     'Dismiss',
-    //     {
-    //       duration: 10000,
-    //       panelClass: ['snackbar-error'],
-    //       verticalPosition: 'top',
-    //     }
-    //   );
-    //   return throwError(
-    //     () => new Error('Problem creating uploaded project areas')
-    //   );
-    // })
-    // )
-    // .subscribe(() => {
-    //   // Navigate to scenario confirmation page
-    //   const planId = this.plan$.getValue()?.id;
-    //   this.router.navigate(['scenario-confirmation', planId]);
-    // });
   }
 
   disableForms() {
@@ -279,55 +252,50 @@ export class CreateScenariosComponent implements OnInit {
     this.constrainsForm?.disable();
   }
 
-  // createUploadedProjectAreas() {
-  //   const uploadedArea = this.formGroups[2].get('uploadedArea')?.value;
-  //   if (this.scenarioConfigId && uploadedArea) {
-  //     return this.planService.bulkCreateProjectAreas(
-  //       this.scenarioConfigId,
-  //       this.convertSingleGeoJsonToGeoJsonArray(uploadedArea)
-  //     );
-  //   }
-  //   return of(null);
-  // }
-
   /**
    * Processes Scenario Results into ChartData format and updates PlanService State with Project Area shapes
    */
   processScenarioResults(scenario: Scenario) {
-    var scenario_output_fields_paths =
+    let scenario_output_fields_paths =
       scenario?.configuration.treatment_question?.scenario_output_fields_paths!;
-    var labels: string[][] = [];
+    let labels: string[][] = [];
+    let priorities =
+      scenario.configuration.treatment_question?.scenario_priorities;
     if (scenario && this.scenarioResults) {
       this.planStateService
         .getMetricData(scenario_output_fields_paths)
         .pipe(take(1))
         .subscribe((metric_data) => {
           for (let metric in metric_data) {
-            var displayName = metric_data[metric]['display_name'];
-            var dataUnits =
+            let displayName = metric_data[metric]['display_name'];
+            let dataUnits =
               metric_data[metric]['output_units'] ||
               metric_data[metric]['data_units'];
-            var metricLayer = metric_data[metric]['raw_layer'];
-            var metricName = metric_data[metric]['metric_name'];
-            var metricData: string[] = [];
-            this.scenarioResults?.result.features.map((featureCollection) => {
-              const props = featureCollection.properties;
-              metricData.push(props[metric]);
-            });
-            labels.push([
-              displayName,
-              dataUnits,
-              metricLayer,
-              metricData,
-              metricName,
-            ]);
+            let metricLayer = metric_data[metric]['raw_layer'];
+            let metricName = metric_data[metric]['metric_name'];
+            let metricData: string[] = [];
+            if (!metric_data[metric]['hide_chart']) {
+              this.scenarioResults?.result.features.map((featureCollection) => {
+                const props = featureCollection.properties;
+
+                metricData.push(props[metric]);
+              });
+              labels.push([
+                displayName,
+                dataUnits,
+                metricLayer,
+                metricData,
+                metricName,
+              ]);
+            }
           }
           this.scenarioChartData = labels.map((label, _) => ({
             label: label[0],
             measurement: label[1],
             metric_layer: label[2],
-            values: label[3],
+            values: label[3] as unknown as number[],
             key: label[4],
+            is_primary: priorities?.includes(label[4]) || false,
           }));
         });
       this.planStateService.updateStateWithShapes(
@@ -364,6 +332,10 @@ export class CreateScenariosComponent implements OnInit {
 
   goBackToPlanning() {
     this.router.navigate(['plan', this.plan$.value?.id]);
+  }
+
+  goToConfig() {
+    this.router.navigate(['plan', this.plan$.value?.id, 'config']);
   }
 
   get projectAreasForm(): FormGroup {

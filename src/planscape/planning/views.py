@@ -1,65 +1,71 @@
 import json
 import logging
 import os
-
-from base.region_name import display_name_to_region, region_to_display_name
+from base.region_name import display_name_to_region
 from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry
+from planning.geometry import coerce_geojson, coerce_geometry
 from django.db import IntegrityError
 from django.db.models import Count, Max
 from django.db.models.functions import Coalesce
 from django.http import (
-    HttpRequest,
     HttpResponse,
-    HttpResponseBadRequest,
-    Http404,
-    JsonResponse,
     QueryDict,
 )
 from django.shortcuts import get_object_or_404
-from collaboration.permissions import PlanningAreaPermission
+from collaboration.permissions import (
+    PlanningAreaPermission,
+    ScenarioPermission,
+    PlanningAreaNotePermission,
+)
 from planning.models import (
     PlanningArea,
+    PlanningAreaNote,
     Scenario,
     ScenarioResult,
     ScenarioResultStatus,
     SharedLink,
+    ScenarioStatus,
 )
-from collaboration.permissions import PlanningAreaPermission, ScenarioPermission
 from planning.serializers import (
+    ListPlanningAreaSerializer,
+    ListScenarioSerializer,
     PlanningAreaSerializer,
     ScenarioSerializer,
     SharedLinkSerializer,
+    PlanningAreaNoteSerializer,
+    ValidatePlanningAreaOutputSerializer,
+    ValidatePlanningAreaSerializer,
 )
 from planning.services import (
     export_to_shapefile,
+    get_acreage,
     validate_scenario_treatment_ratio,
     zip_directory,
 )
 from planning.tasks import async_forsys_run
+from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
+
+from planscape.exceptions import InvalidGeometry
 
 logger = logging.getLogger(__name__)
 
 
 # We always need to store multipolygons, so coerce a single polygon to
 # a multigolygon if needed.
-def _convert_polygon_to_multipolygon(geometry: dict):
-    features = geometry.get("features", [])
-    if len(features) > 1 or len(features) == 0:
-        raise ValueError("Must send exactly one feature.")
-    feature = features[0]
-    geom = feature["geometry"]
-    if geom["type"] == "Polygon":
-        geom["type"] = "MultiPolygon"
-        geom["coordinates"] = [feature["geometry"]["coordinates"]]
-    actual_geometry = GEOSGeometry(json.dumps(geom))
-    if actual_geometry.geom_type != "MultiPolygon":
-        raise ValueError("Could not parse geometry")
-    return actual_geometry
+
+
+@api_view(["POST"])
+def validate_planning_area(request: Request) -> Response:
+    serializer = ValidatePlanningAreaSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    geometry = coerce_geometry(serializer.validated_data.get("geometry"))
+    data = {"area_acres": get_acreage(geometry)}
+    out_serializer = ValidatePlanningAreaOutputSerializer(instance=data)
+    return Response(out_serializer.data)
 
 
 #### PLAN(NING AREA) Handlers ####
@@ -112,13 +118,13 @@ def create_planning_area(request: Request) -> Response:
                 status=status.HTTP_400_BAD_REQUEST,
             )
         # Get the geometry of the planning area.
-        geometry = body.get("geometry")
-        if geometry is None:
+        geojson = body.get("geometry")
+        if geojson is None:
             return Response(
                 {"message": "Must specify the planning area geometry."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        geometry = _convert_polygon_to_multipolygon(geometry)
+        geometry = coerce_geojson(geojson)
         planning_area = PlanningArea.objects.create(
             user=user,
             name=name,
@@ -130,20 +136,22 @@ def create_planning_area(request: Request) -> Response:
             instance=planning_area, context={"request": request}
         )
         return Response(serializer.data)
-
-    except ValueError as ve:  # potentially from _convert_polygon_to_multipolygon
-        logger.error(f"ValueError creating planning area: {ve}")
+    except ValueError as ve:
+        logger.error(
+            "Invalid geometry while creating a new planning area. Payload has more than one feature."
+        )
         return Response(
             {"message": f"Error creating planning area: {str(ve)}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    except KeyError as ke:  # potentially from _convert_polygon_to_multipolygon
-        logger.error(f"Error creating planning area: {ke}")
+    except InvalidGeometry as ve:
+        logger.error(
+            "Invalid geometry while creating a new planning area. Geometry is invalid for some reason."
+        )
         return Response(
-            {"message": f"Error creating planning area: {str(ke)}"},
+            {"message": f"Error creating planning area: {str(ve)}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     except Exception as e:
         logger.error(f"Error creating planning area: {e}")
         raise
@@ -360,23 +368,8 @@ def list_planning_areas(request: Request) -> Response:
                 {"error": "Authentication Required"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-
-        # TODO: This could be really slow; consider paging or perhaps
-        # fetching everything but geometries (since they're huge) for performance gains.
-        # given that we need geometry to calculate total acres, should we save this value
-        # when creating the planning area instead of calculating it each time?
-
-        planning_areas = (
-            PlanningArea.objects.get_for_user(user)
-            .annotate(scenario_count=Count("scenarios", distinct=True))
-            .annotate(
-                scenario_latest_updated_at=Coalesce(
-                    Max("scenarios__updated_at"), "updated_at"
-                )
-            )
-            .order_by("-scenario_latest_updated_at")
-        )
-        serializer = PlanningAreaSerializer(
+        planning_areas = PlanningArea.objects.get_list_for_user(user)
+        serializer = ListPlanningAreaSerializer(
             instance=planning_areas, many=True, context={"request": request}
         )
         return Response(serializer.data)
@@ -526,7 +519,7 @@ def download_shapefile(request: Request) -> Response:
 
         output_zip_name = f"{str(scenario.uuid)}.zip"
         export_to_shapefile(scenario)
-        response = Response(content_type="application/zip")
+        response = HttpResponse(content_type="application/zip")
         zip_directory(response, scenario.get_shapefile_folder())
 
         response["Content-Disposition"] = f"attachment; filename={output_zip_name}"
@@ -569,13 +562,13 @@ def create_scenario(request: Request) -> Response:
                 {"error": "Authentication Required"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        body = json.loads(request.body)
 
         # Check for all needed fields
-        serializer = ScenarioSerializer(data=body, context={"user": user})
+        serializer = ScenarioSerializer(data=request.data, context={"user": user})
         serializer.is_valid(raise_exception=True)
 
-        planning_area = PlanningArea.objects.get(id=body["planning_area"])
+        # no need to convert this anymore, serializer resolves it.
+        planning_area = serializer.validated_data.get("planning_area")
         if not PlanningAreaPermission.can_add_scenario(user, planning_area):
             return Response(
                 {
@@ -621,7 +614,7 @@ def create_scenario(request: Request) -> Response:
         if "(planning_area_id, name)" in ve.args[0]:
             reason = "A scenario with this name already exists."
         return Response(
-            json.dumps({"reason": reason}),
+            {"reason": reason},
             content_type="application/json",
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -633,9 +626,9 @@ def create_scenario(request: Request) -> Response:
 @api_view(["PATCH", "POST"])
 def update_scenario(request: Request) -> Response:
     """
-    Updates a scenario's name or notes.  To date, these are the only fields that
-    can be modified after a scenario is created.  This can be also used to clear
-    the notes field, but the name needs to be defined always.
+    Handles updates to a scenario's notes, name, or status fields.
+    To date, these are the only fields that can be modified after a scenario is created.
+    This can be also used to clear the notes field, but the name needs to be defined always.
 
     Calling this without anything to update will not throw an error.
 
@@ -686,6 +679,16 @@ def update_scenario(request: Request) -> Response:
                 )
 
             scenario.name = new_name
+            is_dirty = True
+
+        if "status" in body:
+            new_status = body.get("status").upper()
+            if (new_status is None) or (new_status not in dict(ScenarioStatus.choices)):
+                return Response(
+                    {"error": "Status is not valid."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            scenario.status = new_status
             is_dirty = True
 
         if is_dirty:
@@ -816,7 +819,7 @@ def list_scenarios_for_planning_area(request: Request) -> Response:
             )
 
         scenarios = Scenario.objects.filter(planning_area__pk=planning_area_id)
-        serializer = ScenarioSerializer(instance=scenarios, many=True)
+        serializer = ListScenarioSerializer(instance=scenarios, many=True)
         return Response(serializer.data)
     except PlanningArea.DoesNotExist:
         return Response(
@@ -939,3 +942,111 @@ def create_shared_link(request: Request) -> Response:
     except Exception as e:
         logger.error("Error creating shared link: %s", e)
         raise
+
+
+class PlanningAreaNotes(APIView):
+    def post(self, request: Request, planningarea_pk: int):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                {"error": "Authentication Required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        note_data = request.data.copy()
+        note_data["planning_area"] = planningarea_pk
+
+        try:
+            serializer = PlanningAreaNoteSerializer(
+                data=note_data, context={"user": user}
+            )
+            serializer.is_valid(raise_exception=True)
+            if not PlanningAreaNotePermission.can_add(user, serializer.validated_data):
+                return Response(
+                    {"error": "Authentication Required"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            new_note = serializer.save()
+            out_serializer = PlanningAreaNoteSerializer(new_note)
+            return Response(
+                out_serializer.data,
+                content_type="application/json",
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            logger.error("Error creating PlanningAreaNote: %s", e)
+            raise
+
+    def get(
+        self, request: Request, planningarea_pk: int, planningareanote_pk: int = None
+    ):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                {"error": "Authentication Required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            if planningareanote_pk:
+                planningareanote = PlanningAreaNote.objects.get(
+                    id=planningareanote_pk, planning_area=planningarea_pk
+                )
+                if not PlanningAreaNotePermission.can_view(user, planningareanote):
+                    return Response(status=status.HTTP_403_FORBIDDEN)
+                serializer = PlanningAreaNoteSerializer(
+                    instance=planningareanote, many=False
+                )
+                return Response(serializer.data)
+
+            else:
+                planningarea = PlanningArea.objects.get(id=planningarea_pk)
+                # Note: all of the notes in this query will have the same PlanningArea, so for now,
+                #  having view access to the PlanningArea means a viewer can see the notes,
+                if not PlanningAreaPermission.can_view(user, planningarea):
+                    return Response(status=status.HTTP_403_FORBIDDEN)
+
+                notes = PlanningAreaNote.objects.filter(
+                    planning_area=planningarea_pk
+                ).order_by("-created_at")
+                serializer = PlanningAreaNoteSerializer(instance=notes, many=True)
+                return Response(serializer.data)
+
+        except PlanningArea.DoesNotExist as pa_dne:
+            logger.error("Error getting notes for planning area: %s", pa_dne)
+            return Response(
+                {"message": "Planning area with this id could not be found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        except PlanningAreaNote.DoesNotExist as pan_dne:
+            logger.error("Error getting notes for planning area: %s", pan_dne)
+            return Response(
+                {"message": "Planning area note could not be found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        except Exception as e:
+            logger.error("Error getting notes for planning area: %s", e)
+            raise
+
+    def delete(self, request: Request, planningarea_pk: int, planningareanote_pk: int):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                {"error": "Authentication Required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        try:
+            note = get_object_or_404(PlanningAreaNote, pk=planningareanote_pk)
+
+            if not PlanningAreaNotePermission.can_remove(user, note):
+                return Response(
+                    {"error": "User does not have access to delete this note."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if note.delete():
+                return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            logger.error("Exception deleting planning area note: %s", e)
+            raise

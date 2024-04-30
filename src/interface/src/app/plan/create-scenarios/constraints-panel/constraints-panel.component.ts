@@ -35,12 +35,14 @@ const customErrors: Record<'notEnoughBudget' | 'budgetOrAreaRequired', string> =
 export class ConstraintsPanelComponent implements OnChanges {
   constraintsForm: FormGroup = this.createForm();
   readonly excludedAreasOptions = EXCLUDED_AREAS;
-  readonly standSizeOptions = STAND_SIZES;
+  readonly standSizeOptions = Object.keys(STAND_SIZES);
 
   @Input() showWarning = false;
   @Input() planningAreaAcres = 0;
 
   budgetStateMatcher = new NotEnoughBudgetStateMatcher();
+
+  focusedSelection = ''; // string to identify which selection is focused
 
   constructor(private fb: FormBuilder) {}
 
@@ -59,9 +61,23 @@ export class ConstraintsPanelComponent implements OnChanges {
         this.budgetOrAreaRequiredValidator,
         this.totalBudgetedValidator(this.planningAreaAcres),
       ]);
+
+      this.constraintsForm
+        .get('physicalConstraintForm.standSize')
+        ?.setValue(this.defaultStandSize());
       // refresh form
       this.constraintsForm.updateValueAndValidity();
     }
+  }
+
+  defaultStandSize() {
+    if (this.standSizeDisabled('MEDIUM')) {
+      return 'SMALL';
+    }
+    if (this.standSizeDisabled('LARGE')) {
+      return 'MEDIUM';
+    }
+    return 'LARGE';
   }
 
   createForm() {
@@ -126,6 +142,10 @@ export class ConstraintsPanelComponent implements OnChanges {
 
   get maxCost() {
     return this.constraintsForm.get('budgetForm.maxCost');
+  }
+
+  standSizeDisabled(standSize: string) {
+    return this.planningAreaAcres < STAND_SIZES[standSize] * 10;
   }
 
   togglMaxAreaAndMaxCost() {
@@ -281,6 +301,12 @@ export class ConstraintsPanelComponent implements OnChanges {
       }
       return null;
     };
+  }
+
+  calculateMinBudget() {
+    const estCostPerAcre = this.constraintsForm.get('budgetForm.estimatedCost')
+      ?.value;
+    return calculateMinBudget(this.planningAreaAcres, estCostPerAcre);
   }
 }
 

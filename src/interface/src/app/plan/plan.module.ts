@@ -1,6 +1,5 @@
 import { AreaDetailsComponent } from './area-details/area-details.component';
 import { AreaNotesComponent } from './area-notes/area-notes.component';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { CommonModule } from '@angular/common';
 import { ConstraintsPanelComponent } from './create-scenarios/constraints-panel/constraints-panel.component';
 import { CreateScenariosComponent } from './create-scenarios/create-scenarios.component';
@@ -35,6 +34,9 @@ import { SetPrioritiesComponent } from './create-scenarios/set-priorities/set-pr
 import { SharedModule } from '../shared/shared.module';
 import { SummaryPanelComponent } from './plan-summary/summary-panel/summary-panel.component';
 import { WINDOW_PROVIDERS } from '@services/window.service';
+import { GoalOverlayComponent } from './create-scenarios/goal-overlay/goal-overlay.component';
+import { DeleteNoteDialogComponent } from './delete-note-dialog/delete-note-dialog.component';
+import { PlanRoutingModule } from './plan-routing.module';
 
 /** Components used in the plan flow. */
 @NgModule({
@@ -43,7 +45,9 @@ import { WINDOW_PROVIDERS } from '@services/window.service';
     AreaNotesComponent,
     ConstraintsPanelComponent,
     CreateScenariosComponent,
+    DeleteNoteDialogComponent,
     ExploreComponent,
+    GoalOverlayComponent,
     IdentifyProjectAreasComponent,
     PlanComponent,
     PlanMapComponent,
@@ -65,7 +69,6 @@ import { WINDOW_PROVIDERS } from '@services/window.service';
   ],
   providers: [WINDOW_PROVIDERS],
   imports: [
-    BrowserAnimationsModule,
     CommonModule,
     FormsModule,
     FeaturesModule,
@@ -79,6 +82,7 @@ import { WINDOW_PROVIDERS } from '@services/window.service';
     NgChartsModule,
     NgxMaskModule.forRoot(),
     ReactiveFormsModule,
+    PlanRoutingModule,
     RouterModule,
     SharedModule,
   ],

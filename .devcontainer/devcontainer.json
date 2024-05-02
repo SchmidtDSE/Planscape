@@ -7,7 +7,12 @@
   },
   "extensions": ["ms-python.python"],
   "forwardPorts": [8000, 4200],
-  "runArgs": ["--network", "bridge"],
+  "runArgs": [
+    "--network",
+    "bridge",
+    "--env-file",
+    ".devcontainer/devcontainer.env"
+  ],
   "workspaceFolder": "/usr/src/app",
   "shutdownAction": "stopContainer" // This might be needed for DevPod
 }

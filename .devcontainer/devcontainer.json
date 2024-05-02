@@ -10,7 +10,7 @@
   "runArgs": [
     "--network",
     "bridge",
-    "--env-file",
+    "--env-file", // Prod deployment provides a .env in the root, but we need to provide our own since .env will not be in the root within the dev container
     ".devcontainer/devcontainer.env"
   ],
   "workspaceFolder": "/usr/src/app",

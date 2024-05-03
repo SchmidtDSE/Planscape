@@ -5,6 +5,11 @@
 ###########################
 
 # https://github.com/OurPlanscape/Planscape/wiki/Development-getting-started#backend
+
+### NOTE: There is probably a better way to do this, using an optional .env in docker-compose perhaps.
+### same is true for the environment.ts and features.json, but for now this preserves all the
+### existing functionality and replicates the flow in the getting started doc. 
+
 bash .devcontainer/init_scripts/init_dotenv.sh
 
 

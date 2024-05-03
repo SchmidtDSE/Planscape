@@ -11,3 +11,6 @@ apt-get install -y nodejs
 # cd to the project directory and install dependencies
 cd src/interface
 npm install
+
+# Install angular-cli
+npm install -g @angular/cli

@@ -172,6 +172,9 @@ node_modules/
 # pycharm
 .idea/
 
+# dev container
+.devcontainer/already-initialized.flag
+
 pyrightconfig.json
 
 Session.vim

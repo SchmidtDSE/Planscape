@@ -1,6 +1,6 @@
 #!/bin/bash
 
-bash scripts/install_dev_dependencies.sh
-bash scripts/init_dev_environment.sh
-bash scripts/init_dev_dependencies.sh
-bash scripts/django_migrate.sh
+bash init_scripts/install_dev_dependencies.sh
+bash init_scripts/init_dev_environment.sh
+bash init_scripts/init_dev_dependencies.sh
+bash init_scripts/django_migrate.sh

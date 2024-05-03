@@ -173,7 +173,7 @@ node_modules/
 .idea/
 
 # dev container
-.devcontainer/already-initialized.flag
+.devcontainer/already_initialized.flag
 
 pyrightconfig.json
 

@@ -15,5 +15,5 @@
   ],
   "workspaceFolder": "/usr/src/app",
   "shutdownAction": "stopContainer", // This might be needed for DevPod
-  "postCreateCommand": "if [ ! -f .devcontainer/already-initialized.flag ]; then bash .devcontainer/post-create.sh && touch .devcontainer/already-initialized.flag; fi" // Run only once, on initial build
+  "postCreateCommand": "if [ ! -f .devcontainer/already_initialized.flag ]; then bash .devcontainer/initialize.sh && touch .devcontainer/already_initialized.flag; fi" // Run only once, on initial build
 }

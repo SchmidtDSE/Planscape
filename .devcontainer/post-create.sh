@@ -10,5 +10,3 @@ npm --version
 # Install node packages within src/interface
 cd src/interface
 npm install
-npm audit fix
-

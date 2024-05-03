@@ -6,7 +6,7 @@
     "terminal.integrated.shell.linux": "/bin/bash"
   },
   "extensions": ["ms-python.python"],
-  "forwardPorts": [8000, 4200],
+  "forwardPorts": [4200],
   "runArgs": [
     "--network",
     "bridge",

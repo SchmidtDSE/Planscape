@@ -14,3 +14,7 @@ npm install
 
 # Install angular-cli
 npm install -g @angular/cli
+
+# Perform django migrations
+cd ../planscape
+python manage.py migrate

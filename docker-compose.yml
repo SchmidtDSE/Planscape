@@ -15,7 +15,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - .:/usr/src/app
     env_file:
-      - .env
+      - .devcontainer/devcontainer.env
 
   redis:
     image: redis:6.2-alpine
@@ -40,7 +40,7 @@ services:
     volumes:
       - .:/usr/src/app
     env_file:
-      - .env
+      - .devcontainer/devcontainer.env
 
   db:
     image: postgis/postgis:15-3.4
@@ -60,4 +60,3 @@ volumes:
   postgres: null
   cache:
     driver: local
-

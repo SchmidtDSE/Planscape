@@ -15,6 +15,11 @@ npm install
 # Install angular-cli
 npm install -g @angular/cli
 
+# Initialize a features.dev.json file, and an environment.dev.ts file (adding the recommended dev import to the environment.ts file)
+cp src/app/features/features.json src/app/features/features.dev.json
+cp src/environments/environment.ts src/environments/environment.dev.ts
+echo "import 'zone.js/plugins/zone-error';" > src/environments/environment.dev.ts
+
 # Perform django migrations
 cd ../planscape
 python manage.py migrate

@@ -46,4 +46,4 @@ bash .devcontainer/init_scripts/psql_create_super.sh
 bash .devcontainer/init_scripts/django_migrate.sh
 
 # https://github.com/OurPlanscape/Planscape/wiki/Development-getting-started#install-r
-bash .devcontainer/init_scripts/install_r_dependencies.sh
+# bash .devcontainer/init_scripts/install_r_dependencies.sh

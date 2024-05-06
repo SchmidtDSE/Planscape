@@ -10,10 +10,22 @@ dpkg-reconfigure --frontend noninteractive tzdata
 
 # Install R library dependencies using apt
 apt-get update
-apt-get install -y libgit2-dev libharfbuzz-dev libfribidi-dev libudunits2-dev r-base libproj-dev sqlite3 libgeos-dev
-
-# Install R devtool dependencies
-apt-get install -y libxml2-dev libfontconfig1-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev 
+apt-get install -y \
+    libgit2-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libudunits2-dev \
+    r-base \
+    libproj-dev \
+    sqlite3 \
+    libgeos-dev \
+    libxml2-dev \
+    libfontconfig1-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libtiff5-dev \
+    libjpeg-dev \
+    libpq-dev
 
 # Define R packages to be installed
 packages=("dplyr" "textshaping" "stringi" "ggnewscale" "udunits2" "sf" "ragg" "pkgdown" "devtools" "DBI" "RPostgreSQL" "optparse" "rjson" "glue" "purrr" "dplyr" "logger")

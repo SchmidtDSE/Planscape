@@ -1,0 +1,29 @@
+name: Update Dependency Hash
+
+on: [push]
+
+jobs:
+  update-hash:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Git
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+
+      - name: Check for dev changes and build if so
+        run: bash dev_dependency_updates.sh
+
+      - name: Commit and push there are changes to dev_dependencies_hash.txt
+        run: |
+          git diff --quiet || (
+            branch_name=${GITHUB_REF#refs/heads/}
+            devpod build github.com/SchmidtDSE/Planscape@$branch_name --repository ghcr.io/my-org/my-repo:$branch_name
+            git add .devcontainer/dependencies_hash.txt;
+            git commit -m 'Update dependency hash';
+            git push
+          )

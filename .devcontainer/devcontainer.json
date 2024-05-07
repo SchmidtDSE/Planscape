@@ -1,5 +1,10 @@
 {
   "name": "Planscape",
+  "customizations": {
+    "devpod": {
+      "prebuildRepository": "ghcr.io/SchmidtDSE/Planscape"
+    }
+  },
   "dockerComposeFile": "../docker-compose.yml",
   "service": "web",
   "settings": {

@@ -18,9 +18,15 @@ stored_hash=$(cat .devcontainer/prebuild/dev_dependency_hash.txt)
 # If the hashes are different or if the stored hash does not exist
 if [ "$new_hash" != "$stored_hash" ]; then
 
-  # Install devpod within the runner
-  sudo apt-get install devpod
-
   # Update the stored hash
   echo $new_hash > .devcontainer/dependencies_hash.txt
+  
+  # If dependencies have changed, prebuild the devcontainer and push to ghcr.io
+  echo "Dependencies have changed since the last build, prebuilding..."
+  devpod up github.com/SchmidtDSE/Planscape@$branch_name --prebuild-repository github.com/SchmidtDSE/Planscape@$branch_name
+
+else
+  # If not, do nothing
+  echo "Dependencies have not changed since the last build, no prebuild needed!"
+
 fi
